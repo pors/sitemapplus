@@ -1,4 +1,4 @@
-# SitemapPlus - Advanced Sitemap Generator & SEO Monitor
+# SitemapPlus - Sitemap Generator & SEO Monitor
 
 A production-ready Python crawler that generates sitemaps while monitoring SEO health. Built for sites with thousands of pages, featuring incremental crawling, automatic retries, and comprehensive SEO analysis.
 
