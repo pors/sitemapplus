@@ -2,6 +2,8 @@
 
 A production-ready Python crawler that generates sitemaps while monitoring SEO health. Built for sites with thousands of pages, featuring incremental crawling, automatic retries, and comprehensive SEO analysis.
 
+[Example report](https://pors.github.io/sitemapplus/seo_report_example.html)
+
 ## 🎯 Introduction
 
 SitemapPlus is more than just a sitemap generator. It's a comprehensive SEO monitoring tool that:
