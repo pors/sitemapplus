@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SitemapPlus SEO Report - 2025-08-13 17:37</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #3498db;
+        }
+        .stat-label {
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        .filter-buttons {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #3498db;
+            background: white;
+            color: #3498db;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        .filter-btn:hover, .filter-btn.active {
+            background: #3498db;
+            color: white;
+        }
+        .filter-count {
+            display: inline-block;
+            margin-left: 5px;
+            padding: 2px 6px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        .filter-btn.active .filter-count {
+            background: rgba(255,255,255,0.3);
+        }
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        thead {
+            background: #f8f9fa;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #dee2e6;
+        }
+        tbody tr {
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+        tbody tr.expanded {
+            background: #e8f4fd;
+        }
+        td {
+            padding: 12px 15px;
+        }
+        .url-cell {
+            color: #2c3e50;
+            max-width: 600px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .issues-cell {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .issue-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.75em;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .issue-badge.critical {
+            background: #ffe5e5;
+            color: #c0392b;
+        }
+        .issue-badge.major {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .issue-badge.minor {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        .severity-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .severity-indicator.critical {
+            background: #e74c3c;
+        }
+        .severity-indicator.major {
+            background: #f39c12;
+        }
+        .severity-indicator.minor {
+            background: #95a5a6;
+        }
+        .severity-indicator.clean {
+            background: #27ae60;
+        }
+        .details-row {
+            display: none;
+        }
+        .details-row.show {
+            display: table-row;
+        }
+        .details-content {
+            padding: 20px;
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+        }
+        .detail-section {
+            margin-bottom: 15px;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .detail-value {
+            color: #5a6c7d;
+            margin-left: 20px;
+        }
+        .expand-icon {
+            display: inline-block;
+            margin-right: 10px;
+            transition: transform 0.3s;
+            color: #7f8c8d;
+        }
+        tr.expanded .expand-icon {
+            transform: rotate(90deg);
+        }
+        .hidden {
+            display: none !important;
+        }
+        .no-issues {
+            color: #27ae60;
+            font-style: italic;
+        }
+        @media (max-width: 768px) {
+            .url-cell {
+                max-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SitemapPlus SEO Report</h1>
+            <p style="color: #7f8c8d;">Generated on 2025-08-13 17:37:21</p>
+        </header>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number">11</div>
+                <div class="stat-label">Total Pages Crawled</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">8</div>
+                <div class="stat-label">Pages with Issues</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">16</div>
+                <div class="stat-label">Total Issues Found</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">8</div>
+                <div class="stat-label">Critical Issues</div>
+            </div>
+        </div>
+        
+        <div class="filter-buttons">
+            <button class="filter-btn active" onclick="filterBySeverity('all')">
+                All Pages <span class="filter-count">11</span>
+            </button>
+            <button class="filter-btn" onclick="filterBySeverity('critical')">
+                Critical <span class="filter-count">8</span>
+            </button>
+            <button class="filter-btn" onclick="filterBySeverity('major')">
+                Major <span class="filter-count">0</span>
+            </button>
+            <button class="filter-btn" onclick="filterBySeverity('minor')">
+                Minor <span class="filter-count">0</span>
+            </button>
+            <button class="filter-btn" onclick="filterBySeverity('clean')">
+                Clean <span class="filter-count">3</span>
+            </button>
+        </div>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50%;">URL</th>
+                        <th style="width: 50%;">Issues</th>
+                    </tr>
+                </thead>
+                <tbody>
+    
+                    <tr class="data-row" data-severity="clean" onclick="toggleDetails(0)">
+                        <td class="url-cell">
+                            <span class="expand-icon">▶</span>
+                            <span class="severity-indicator clean"></span>
+                            https://paperzilla.ai
+                        </td>
+                        <td>
+                            <div class="issues-cell">
+        <span class="no-issues">No issues</span>
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="details-row" id="details-0">
+                        <td colspan="2">
+                            <div class="details-content">
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">URL:</div>
+                                    <div class="detail-value"><a href="https://paperzilla.ai" target="_blank">https://paperzilla.ai</a></div>
+                                </div>
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">Title (46 chars):</div>
+                                    <div class="detail-value">Paperzilla: AI-Powered Academic Paper Analysis</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Meta Description (168 chars):</div>
+                                    <div class="detail-value">Upload research papers and get instant AI analysis including summaries, quality ratings, and identified limitations. Crunching academic papers into bite-sized insights.</div>
+                                </div>
+            
+                            <div class="detail-section">
+                                <div class="detail-label">Canonical URL:</div>
+                                <div class="detail-value">https://paperzilla.ai</div>
+                            </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">H1 Tags (1):</div>
+            <div class="detail-value">• PAPERZILLA</div></div>
+                                <div class="detail-section">
+                                    <div class="detail-label">HTTP Status:</div>
+                                    <div class="detail-value">200</div>
+                                </div>
+                                <div class="detail-section">
+                                    <div class="detail-label">Last Crawled:</div>
+                                    <div class="detail-value">2025-08-13T17:34:55.045323</div>
+                                </div>
+        
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="data-row" data-severity="clean" onclick="toggleDetails(1)">
+                        <td class="url-cell">
+                            <span class="expand-icon">▶</span>
+                            <span class="severity-indicator clean"></span>
+                            https://paperzilla.ai/about
+                        </td>
+                        <td>
+                            <div class="issues-cell">
+        <span class="no-issues">No issues</span>
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="details-row" id="details-1">
+                        <td colspan="2">
+                            <div class="details-content">
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">URL:</div>
+                                    <div class="detail-value"><a href="https://paperzilla.ai/about" target="_blank">https://paperzilla.ai/about</a></div>
+                                </div>
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">Title (16 chars):</div>
+                                    <div class="detail-value">About Paperzilla</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Meta Description (178 chars):</div>
+                                    <div class="detail-value">Paperzilla helps you understand scientific papers quickly. Built by Mark to combat paper-waving in online discussions. Get AI-powered summaries, ratings, and limitation analysis.</div>
+                                </div>
+            
+                            <div class="detail-section">
+                                <div class="detail-label">Canonical URL:</div>
+                                <div class="detail-value">https://paperzilla.ai/about</div>
+                            </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">H1 Tags (1):</div>
+            <div class="detail-value">• About Paperzilla</div></div>
+                                <div class="detail-section">
+                                    <div class="detail-label">H2 Tags (5):</div>
+            <div class="detail-value">• Why I made Paperzilla</div><div class="detail-value">• Get in touch with me:</div><div class="detail-value">• How It Works</div><div class="detail-value">• Privacy & Sharing</div><div class="detail-value">• Contact</div></div>
+                                <div class="detail-section">
+                                    <div class="detail-label">HTTP Status:</div>
+                                    <div class="detail-value">200</div>
+                                </div>
+                                <div class="detail-section">
+                                    <div class="detail-label">Last Crawled:</div>
+                                    <div class="detail-value">2025-08-13T17:35:16.068136</div>
+                                </div>
+        
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="data-row" data-severity="clean" onclick="toggleDetails(2)">
+                        <td class="url-cell">
+                            <span class="expand-icon">▶</span>
+                            <span class="severity-indicator clean"></span>
+                            https://paperzilla.ai/fields
+                        </td>
+                        <td>
+                            <div class="issues-cell">
+        <span class="no-issues">No issues</span>
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="details-row" id="details-2">
+                        <td colspan="2">
+                            <div class="details-content">
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">URL:</div>
+                                    <div class="detail-value"><a href="https://paperzilla.ai/fields" target="_blank">https://paperzilla.ai/fields</a></div>
+                                </div>
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">Title (86 chars):</div>
+                                    <div class="detail-value">Browse research Fields. Discover academic papers with AI-powered analysis - Paperzilla</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Meta Description (73 chars):</div>
+                                    <div class="detail-value">Browse research Fields. Discover academic papers with AI-powered analysis</div>
+                                </div>
+            
+                            <div class="detail-section">
+                                <div class="detail-label">Canonical URL:</div>
+                                <div class="detail-value">https://paperzilla.ai/fields</div>
+                            </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">H1 Tags (1):</div>
+            <div class="detail-value">• Paperzilla Research Topics</div></div>
+                                <div class="detail-section">
+                                    <div class="detail-label">H2 Tags (4):</div>
+            <div class="detail-value">• Health Sciences</div><div class="detail-value">• Life Sciences</div><div class="detail-value">• Physical Sciences</div><div class="detail-value">• Social Sciences</div></div>
+                                <div class="detail-section">
+                                    <div class="detail-label">HTTP Status:</div>
+                                    <div class="detail-value">200</div>
+                                </div>
+                                <div class="detail-section">
+                                    <div class="detail-label">Last Crawled:</div>
+                                    <div class="detail-value">2025-08-13T17:35:16.643299</div>
+                                </div>
+        
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="data-row" data-severity="critical" onclick="toggleDetails(3)">
+                        <td class="url-cell">
+                            <span class="expand-icon">▶</span>
+                            <span class="severity-indicator critical"></span>
+                            https://paperzilla.ai/paper/0b1c6a85/elliptic-genera-of-2d-n-0-1-gauge-theories
+                        </td>
+                        <td>
+                            <div class="issues-cell">
+        <span class="issue-badge critical">Missing H1</span><span class="issue-badge minor">Missing Canonical</span>
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="details-row" id="details-3">
+                        <td colspan="2">
+                            <div class="details-content">
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">URL:</div>
+                                    <div class="detail-value"><a href="https://paperzilla.ai/paper/0b1c6a85/elliptic-genera-of-2d-n-0-1-gauge-theories" target="_blank">https://paperzilla.ai/paper/0b1c6a85/elliptic-genera-of-2d-n-0-1-gauge-theories</a></div>
+                                </div>
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">Title (59 chars):</div>
+                                    <div class="detail-value">Elliptic Genera of 2d N = (0,1) Gauge Theories - Paperzilla</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Meta Description (435 chars):</div>
+                                    <div class="detail-value">This paper derives a new formula for calculating elliptic genera in two-dimensional quantum field theories with minimal supersymmetry (N=(0,1)). The researchers apply this formula to a specific model, the Gukov-Pei-Putrov model, and analyze its various phases or possible states. The formula requires several technical assumptions which should be investigated further. AI-powered Analysis of this academic research paper by Paperzilla.</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Issue Details:</div>
+            <div class="detail-value">• No H1 tag found (recommended: 1)</div><div class="detail-value">• No canonical URL specified</div></div>
+                                <div class="detail-section">
+                                    <div class="detail-label">HTTP Status:</div>
+                                    <div class="detail-value">200</div>
+                                </div>
+                                <div class="detail-section">
+                                    <div class="detail-label">Last Crawled:</div>
+                                    <div class="detail-value">2025-08-13T17:35:22.951809</div>
+                                </div>
+        
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="data-row" data-severity="critical" onclick="toggleDetails(4)">
+                        <td class="url-cell">
+                            <span class="expand-icon">▶</span>
+                            <span class="severity-indicator critical"></span>
+                            https://paperzilla.ai/paper/2500d1c9/the-multifunctional-immune-system
+                        </td>
+                        <td>
+                            <div class="issues-cell">
+        <span class="issue-badge critical">Missing H1</span><span class="issue-badge minor">Missing Canonical</span>
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="details-row" id="details-4">
+                        <td colspan="2">
+                            <div class="details-content">
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">URL:</div>
+                                    <div class="detail-value"><a href="https://paperzilla.ai/paper/2500d1c9/the-multifunctional-immune-system" target="_blank">https://paperzilla.ai/paper/2500d1c9/the-multifunctional-immune-system</a></div>
+                                </div>
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">Title (46 chars):</div>
+                                    <div class="detail-value">THE MULTIFUNCTIONAL IMMUNE SYSTEM - Paperzilla</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Meta Description (349 chars):</div>
+                                    <div class="detail-value">This article introduces the idea of the immune system's broader role beyond just fighting pathogens. It highlights its function in tissue repair, organ function, and overall physiological regulation, emphasizing the interconnectedness of the immune system with other bodily systems. AI-powered Analysis of this academic research paper by Paperzilla.</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Issue Details:</div>
+            <div class="detail-value">• No H1 tag found (recommended: 1)</div><div class="detail-value">• No canonical URL specified</div></div>
+                                <div class="detail-section">
+                                    <div class="detail-label">HTTP Status:</div>
+                                    <div class="detail-value">200</div>
+                                </div>
+                                <div class="detail-section">
+                                    <div class="detail-label">Last Crawled:</div>
+                                    <div class="detail-value">2025-08-13T17:35:24.053318</div>
+                                </div>
+        
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="data-row" data-severity="critical" onclick="toggleDetails(5)">
+                        <td class="url-cell">
+                            <span class="expand-icon">▶</span>
+                            <span class="severity-indicator critical"></span>
+                            https://paperzilla.ai/paper/54a53de6/quality-upper-gastrointestinal-endoscopy-in-australia-and-aotearoa-new-zealand-a-joint-position-statement
+                        </td>
+                        <td>
+                            <div class="issues-cell">
+        <span class="issue-badge critical">Missing H1</span><span class="issue-badge minor">Missing Canonical</span>
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="details-row" id="details-5">
+                        <td colspan="2">
+                            <div class="details-content">
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">URL:</div>
+                                    <div class="detail-value"><a href="https://paperzilla.ai/paper/54a53de6/quality-upper-gastrointestinal-endoscopy-in-australia-and-aotearoa-new-zealand-a-joint-position-statement" target="_blank">https://paperzilla.ai/paper/54a53de6/quality-upper-gastrointestinal-endoscopy-in-australia-and-aotearoa-new-zealand-a-joint-position-statement</a></div>
+                                </div>
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">Title (119 chars):</div>
+                                    <div class="detail-value">Quality Upper Gastrointestinal Endoscopy in Australia and Aotearoa New Zealand: A Joint Position Statement - Paperzilla</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Meta Description (501 chars):</div>
+                                    <div class="detail-value">This paper presents a joint position statement on quality standards for upper gastrointestinal (UGI) endoscopy in Australia and Aotearoa New Zealand, covering pre-, intra-, and post-procedural recommendations. It emphasizes the need for tailored guidelines relevant to the diverse patient population and healthcare settings of the region, and also gives recommendations for specific conditions of the esophagus, stomach, and duodenum. AI-powered Analysis of this academic research paper by Paperzilla.</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Issue Details:</div>
+            <div class="detail-value">• No H1 tag found (recommended: 1)</div><div class="detail-value">• No canonical URL specified</div></div>
+                                <div class="detail-section">
+                                    <div class="detail-label">HTTP Status:</div>
+                                    <div class="detail-value">200</div>
+                                </div>
+                                <div class="detail-section">
+                                    <div class="detail-label">Last Crawled:</div>
+                                    <div class="detail-value">2025-08-13T17:35:25.120052</div>
+                                </div>
+        
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="data-row" data-severity="critical" onclick="toggleDetails(6)">
+                        <td class="url-cell">
+                            <span class="expand-icon">▶</span>
+                            <span class="severity-indicator critical"></span>
+                            https://paperzilla.ai/paper/57e866eb/increased-melt-from-greenland-s-most-active-glacier-fuels-enhanced-coastal-productivity
+                        </td>
+                        <td>
+                            <div class="issues-cell">
+        <span class="issue-badge critical">Missing H1</span><span class="issue-badge minor">Missing Canonical</span>
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="details-row" id="details-6">
+                        <td colspan="2">
+                            <div class="details-content">
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">URL:</div>
+                                    <div class="detail-value"><a href="https://paperzilla.ai/paper/57e866eb/increased-melt-from-greenland-s-most-active-glacier-fuels-enhanced-coastal-productivity" target="_blank">https://paperzilla.ai/paper/57e866eb/increased-melt-from-greenland-s-most-active-glacier-fuels-enhanced-coastal-productivity</a></div>
+                                </div>
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">Title (100 chars):</div>
+                                    <div class="detail-value">Increased melt from Greenland's most active glacier fuels enhanced coastal productivity - Paperzilla</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Meta Description (562 chars):</div>
+                                    <div class="detail-value">Increased glacial meltwater in Greenland fjords enhances phytoplankton productivity due to nutrient upwelling, although the impact on overall ocean carbon uptake is limited due to counteracting changes in water chemistry.  The study utilized a high-resolution model, but some biases related to sea ice cover and nutrient concentrations were noted.   The findings highlight the complex interplay of physical and biological factors in glacial fjord ecosystems and their response to climate change. AI-powered Analysis of this academic research paper by Paperzilla.</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Issue Details:</div>
+            <div class="detail-value">• No H1 tag found (recommended: 1)</div><div class="detail-value">• No canonical URL specified</div></div>
+                                <div class="detail-section">
+                                    <div class="detail-label">HTTP Status:</div>
+                                    <div class="detail-value">200</div>
+                                </div>
+                                <div class="detail-section">
+                                    <div class="detail-label">Last Crawled:</div>
+                                    <div class="detail-value">2025-08-13T17:35:19.277105</div>
+                                </div>
+        
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="data-row" data-severity="critical" onclick="toggleDetails(7)">
+                        <td class="url-cell">
+                            <span class="expand-icon">▶</span>
+                            <span class="severity-indicator critical"></span>
+                            https://paperzilla.ai/paper/7afd950a/in-utero-exposure-to-electronic-cigarette-carriers-alters-craniofacial-morphology
+                        </td>
+                        <td>
+                            <div class="issues-cell">
+        <span class="issue-badge critical">Missing H1</span><span class="issue-badge minor">Missing Canonical</span>
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="details-row" id="details-7">
+                        <td colspan="2">
+                            <div class="details-content">
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">URL:</div>
+                                    <div class="detail-value"><a href="https://paperzilla.ai/paper/7afd950a/in-utero-exposure-to-electronic-cigarette-carriers-alters-craniofacial-morphology" target="_blank">https://paperzilla.ai/paper/7afd950a/in-utero-exposure-to-electronic-cigarette-carriers-alters-craniofacial-morphology</a></div>
+                                </div>
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">Title (94 chars):</div>
+                                    <div class="detail-value">In utero exposure to electronic cigarette carriers alters craniofacial morphology - Paperzilla</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Meta Description (526 chars):</div>
+                                    <div class="detail-value">This study on mice found that in utero exposure to e-cigarette aerosol containing propylene glycol (PG) and vegetable glycerin (VG) alters craniofacial development in their pups. The 30/70 PG/VG mixture caused a greater reduction in facial and cranial growth compared to the 50/50 PG/VG mixture and controls, contrary to the initial hypothesis. Postnatal weight was also reduced in the 30/70 PG/VG group, though still within normal range for this mouse model. AI-powered Analysis of this academic research paper by Paperzilla.</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Issue Details:</div>
+            <div class="detail-value">• No H1 tag found (recommended: 1)</div><div class="detail-value">• No canonical URL specified</div></div>
+                                <div class="detail-section">
+                                    <div class="detail-label">HTTP Status:</div>
+                                    <div class="detail-value">200</div>
+                                </div>
+                                <div class="detail-section">
+                                    <div class="detail-label">Last Crawled:</div>
+                                    <div class="detail-value">2025-08-13T17:35:21.827028</div>
+                                </div>
+        
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="data-row" data-severity="critical" onclick="toggleDetails(8)">
+                        <td class="url-cell">
+                            <span class="expand-icon">▶</span>
+                            <span class="severity-indicator critical"></span>
+                            https://paperzilla.ai/paper/b15a866a/the-proteogenomic-landscape-of-the-human-kidney-and-implications-for-cardio-kidney-metabolic-health
+                        </td>
+                        <td>
+                            <div class="issues-cell">
+        <span class="issue-badge critical">Missing H1</span><span class="issue-badge minor">Missing Canonical</span>
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="details-row" id="details-8">
+                        <td colspan="2">
+                            <div class="details-content">
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">URL:</div>
+                                    <div class="detail-value"><a href="https://paperzilla.ai/paper/b15a866a/the-proteogenomic-landscape-of-the-human-kidney-and-implications-for-cardio-kidney-metabolic-health" target="_blank">https://paperzilla.ai/paper/b15a866a/the-proteogenomic-landscape-of-the-human-kidney-and-implications-for-cardio-kidney-metabolic-health</a></div>
+                                </div>
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">Title (112 chars):</div>
+                                    <div class="detail-value">The proteogenomic landscape of the human kidney and implications for cardio-kidney-metabolic health - Paperzilla</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Meta Description (502 chars):</div>
+                                    <div class="detail-value">This study explored the relationship between genetic variation and protein levels in human kidneys, mostly of European descent.  Researchers identified numerous protein quantitative trait loci (pQTLs) and expression QTLs (eQTLs), indicating genetic variants associated with specific protein levels and gene expression.  While this is correlational data, the findings offer potential avenues for understanding kidney health and disease. AI-powered Analysis of this academic research paper by Paperzilla.</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Issue Details:</div>
+            <div class="detail-value">• No H1 tag found (recommended: 1)</div><div class="detail-value">• No canonical URL specified</div></div>
+                                <div class="detail-section">
+                                    <div class="detail-label">HTTP Status:</div>
+                                    <div class="detail-value">200</div>
+                                </div>
+                                <div class="detail-section">
+                                    <div class="detail-label">Last Crawled:</div>
+                                    <div class="detail-value">2025-08-13T17:35:20.420573</div>
+                                </div>
+        
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="data-row" data-severity="critical" onclick="toggleDetails(9)">
+                        <td class="url-cell">
+                            <span class="expand-icon">▶</span>
+                            <span class="severity-indicator critical"></span>
+                            https://paperzilla.ai/paper/ca16c845/localised-rectal-cancer-esmo-clinical-practice-guideline-for-diagnosis-treatment-and-follow-up
+                        </td>
+                        <td>
+                            <div class="issues-cell">
+        <span class="issue-badge critical">Missing H1</span><span class="issue-badge minor">Missing Canonical</span>
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="details-row" id="details-9">
+                        <td colspan="2">
+                            <div class="details-content">
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">URL:</div>
+                                    <div class="detail-value"><a href="https://paperzilla.ai/paper/ca16c845/localised-rectal-cancer-esmo-clinical-practice-guideline-for-diagnosis-treatment-and-follow-up" target="_blank">https://paperzilla.ai/paper/ca16c845/localised-rectal-cancer-esmo-clinical-practice-guideline-for-diagnosis-treatment-and-follow-up</a></div>
+                                </div>
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">Title (109 chars):</div>
+                                    <div class="detail-value">Localised rectal cancer: ESMO Clinical Practice Guideline for diagnosis, treatment and follow-up - Paperzilla</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Meta Description (632 chars):</div>
+                                    <div class="detail-value">This clinical practice guideline offers a detailed roadmap for diagnosing, treating, and following up on localized rectal cancer, emphasizing personalized strategies based on individual patient characteristics and tumor features. The guideline covers everything from initial screening and diagnosis to various treatment options including surgery, chemotherapy, and radiation, with specific recommendations for different tumor stages and risk profiles. It also highlights the importance of multidisciplinary team involvement and shared decision-making with patients. AI-powered Analysis of this academic research paper by Paperzilla.</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Issue Details:</div>
+            <div class="detail-value">• No H1 tag found (recommended: 1)</div><div class="detail-value">• No canonical URL specified</div></div>
+                                <div class="detail-section">
+                                    <div class="detail-label">HTTP Status:</div>
+                                    <div class="detail-value">200</div>
+                                </div>
+                                <div class="detail-section">
+                                    <div class="detail-label">Last Crawled:</div>
+                                    <div class="detail-value">2025-08-13T17:35:26.314301</div>
+                                </div>
+        
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="data-row" data-severity="critical" onclick="toggleDetails(10)">
+                        <td class="url-cell">
+                            <span class="expand-icon">▶</span>
+                            <span class="severity-indicator critical"></span>
+                            https://paperzilla.ai/paper/e3f0beca/coarse-graining-with-neural-operators-for-simulating-chaotic-systems
+                        </td>
+                        <td>
+                            <div class="issues-cell">
+        <span class="issue-badge critical">Missing H1</span><span class="issue-badge minor">Missing Canonical</span>
+                            </div>
+                        </td>
+                    </tr>
+        
+                    <tr class="details-row" id="details-10">
+                        <td colspan="2">
+                            <div class="details-content">
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">URL:</div>
+                                    <div class="detail-value"><a href="https://paperzilla.ai/paper/e3f0beca/coarse-graining-with-neural-operators-for-simulating-chaotic-systems" target="_blank">https://paperzilla.ai/paper/e3f0beca/coarse-graining-with-neural-operators-for-simulating-chaotic-systems</a></div>
+                                </div>
+        
+                                <div class="detail-section">
+                                    <div class="detail-label">Title (81 chars):</div>
+                                    <div class="detail-value">Coarse Graining with Neural Operators for Simulating Chaotic Systems - Paperzilla</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Meta Description (544 chars):</div>
+                                    <div class="detail-value">This paper proposes a machine-learning framework for predicting the long-term behavior of chaotic systems, focusing on fluid dynamics.  By learning a simplified version of the system's evolution, the method achieves significant speedups compared to traditional simulations while maintaining good accuracy in predicting statistical properties. The method utilizes a multi-fidelity training approach to minimize the need for computationally expensive, fully-resolved simulations. AI-powered Analysis of this academic research paper by Paperzilla.</div>
+                                </div>
+            
+                                <div class="detail-section">
+                                    <div class="detail-label">Issue Details:</div>
+            <div class="detail-value">• No H1 tag found (recommended: 1)</div><div class="detail-value">• No canonical URL specified</div></div>
+                                <div class="detail-section">
+                                    <div class="detail-label">HTTP Status:</div>
+                                    <div class="detail-value">200</div>
+                                </div>
+                                <div class="detail-section">
+                                    <div class="detail-label">Last Crawled:</div>
+                                    <div class="detail-value">2025-08-13T17:35:18.132699</div>
+                                </div>
+        
+                            </div>
+                        </td>
+                    </tr>
+        
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        function toggleDetails(index) {
+            const detailsRow = document.getElementById('details-' + index);
+            const dataRow = detailsRow.previousElementSibling;
+            
+            detailsRow.classList.toggle('show');
+            dataRow.classList.toggle('expanded');
+        }
+        
+        function filterBySeverity(severity) {
+            // Update button states
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Show/hide rows
+            document.querySelectorAll('.data-row').forEach(row => {
+                const nextRow = row.nextElementSibling; // details row
+                if (severity === 'all' || row.dataset.severity === severity) {
+                    row.classList.remove('hidden');
+                } else {
+                    row.classList.add('hidden');
+                    nextRow.classList.remove('show'); // hide details if main row is hidden
+                    row.classList.remove('expanded');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
+    
