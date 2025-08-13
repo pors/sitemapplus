@@ -529,6 +529,10 @@ Built with:
 - [SQLite](https://www.sqlite.org/) for data persistence
 - [Claude AI](https://claude.ai/) for coding and documenting
 
+Tested with:
+
+- [Paperzilla](https://paperzilla.ai)
+
 ## 📧 Support
 
 For issues and questions:
