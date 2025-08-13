@@ -1,0 +1,43 @@
+# Minimal config for testing
+site:
+  base_url: "https:/example.com"
+  sitemap_output_path: "./sitemap.txt"
+
+crawler:
+  user_agent: "SitemapPlusBot/1.0"
+  timeout: 10
+  max_retries: 5  # Maximum retry attempts per URL
+  backoff_factor: 2  # Exponential backoff multiplier
+  rate_limit: 0.5  # seconds between requests
+
+# SEO Rules and Thresholds
+seo:
+  title:
+    min_length: 10
+    max_length: 9999
+    required: true
+    
+  meta_description:
+    min_length: 20
+    max_length: 9999
+    required: true
+    
+  headings:
+    max_h1_tags: 1  # should only have one H1
+    min_h1_tags: 1  # should have at least one H1
+    warn_empty_headings: true
+    
+  # Define issue severity levels
+  severity:
+    critical:
+      - missing_title
+      - missing_h1
+    major:
+      - missing_meta_description
+      - multiple_h1
+      - duplicate_title
+    minor:
+      - short_title
+      - long_title
+      - short_meta_description
+      - long_meta_description

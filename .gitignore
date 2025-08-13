@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.py[cod]
+TODO.md
+*.html
+*.txt
+config.yaml
+*.db
