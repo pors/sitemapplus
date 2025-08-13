@@ -127,6 +127,13 @@ def extract_seo_data(html: str, url: str) -> Dict:
         if content and isinstance(content, str):
             data["meta_description"] = content.strip()
 
+    # Extract canonical URL
+    canonical_link = soup.find("link", attrs={"rel": "canonical"})
+    if canonical_link and isinstance(canonical_link, Tag):
+        href = canonical_link.get("href")
+        if href and isinstance(href, str):
+            data["canonical_url"] = href.strip()
+
     h1_tags = soup.find_all("h1")
     data["h1_tags"] = [h1.get_text(strip=True) for h1 in h1_tags]
 
@@ -225,6 +232,42 @@ def identify_seo_issues(data: Dict, config: Dict) -> List[Dict]:
         empty_h1s = [h1 for h1 in data['h1_tags'] if not h1.strip()]
         if empty_h1s:
             issues.append({'type': 'empty_h1', 'details': f'Found {len(empty_h1s)} empty H1 tag(s)'})
+    
+    # Canonical URL rules
+    canonical_config = seo_config.get('canonical', {})
+    require_canonical = canonical_config.get('required', True)
+    check_self_referencing = canonical_config.get('check_self_referencing', True)
+    
+    if require_canonical and not data.get('canonical_url'):
+        issues.append({
+            'type': 'missing_canonical', 
+            'details': 'No canonical URL specified'
+        })
+    elif data.get('canonical_url') and check_self_referencing:
+        # Normalize URLs for comparison (remove trailing slashes, fragments, etc.)
+        from urllib.parse import urlparse, urlunparse
+        
+        def normalize_url(url):
+            parsed = urlparse(url)
+            # Remove fragment and normalize path
+            normalized = urlunparse((
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path.rstrip('/') if parsed.path != '/' else '/',
+                parsed.params,
+                parsed.query,
+                ''  # remove fragment
+            ))
+            return normalized
+        
+        canonical_normalized = normalize_url(data['canonical_url'])
+        actual_normalized = normalize_url(data['url'])
+        
+        if canonical_normalized != actual_normalized:
+            issues.append({
+                'type': 'canonical_mismatch',
+                'details': f'Canonical URL ({data["canonical_url"]}) doesn\'t match actual URL'
+            })
     
     return issues
 

@@ -22,7 +22,8 @@ def get_seo_data_with_issues(db: Database) -> List[Dict]:
                 s.title,
                 s.meta_description,
                 s.h1_tags,
-                s.h2_tags
+                s.h2_tags,
+                s.canonical_url
             FROM urls u
             LEFT JOIN seo_data s ON u.id = s.url_id
             WHERE u.status = 'crawled'
@@ -38,6 +39,7 @@ def get_seo_data_with_issues(db: Database) -> List[Dict]:
                 'last_crawled': row['last_crawled'],
                 'title': row['title'],
                 'meta_description': row['meta_description'],
+                'canonical_url': row['canonical_url'],
                 'h1_tags': json.loads(row['h1_tags']) if row['h1_tags'] else [],
                 'h2_tags': json.loads(row['h2_tags']) if row['h2_tags'] else [],
                 'issues': []
@@ -96,7 +98,7 @@ def generate_html_report(urls_data: List[Dict], output_file: str = "seo_report.h
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SEO Report - {datetime.now().strftime('%Y-%m-%d %H:%M')}</title>
+    <title>SitemapPlus SEO Report - {datetime.now().strftime('%Y-%m-%d %H:%M')}</title>
     <style>
         * {{
             margin: 0;
@@ -319,7 +321,7 @@ def generate_html_report(urls_data: List[Dict], output_file: str = "seo_report.h
 <body>
     <div class="container">
         <header>
-            <h1>🔍 SEO Report</h1>
+            <h1>SitemapPlus SEO Report</h1>
             <p style="color: #7f8c8d;">Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
         </header>
         
@@ -432,6 +434,15 @@ def generate_html_report(urls_data: List[Dict], output_file: str = "seo_report.h
                                     <div class="detail-label">Meta Description ({len(url_data['meta_description'])} chars):</div>
                                     <div class="detail-value">{url_data['meta_description']}</div>
                                 </div>
+            """
+        
+        # Add canonical URL info 
+        if url_data.get('canonical_url'):
+            html += f"""
+                            <div class="detail-section">
+                                <div class="detail-label">Canonical URL:</div>
+                                <div class="detail-value">{url_data['canonical_url']}</div>
+                            </div>
             """
         
         # Add H1 tags

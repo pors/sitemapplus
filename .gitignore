@@ -2,7 +2,7 @@
 __pycache__/
 *.py[cod]
 TODO.md
-*.html
+*report.html
 *.txt
 config.yaml
 *.db

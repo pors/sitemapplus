@@ -131,8 +131,8 @@ class Database:
             cursor.execute(
                 """
                 INSERT OR REPLACE INTO seo_data 
-                (url_id, title, meta_description, h1_tags, h2_tags)
-                VALUES (?, ?, ?, ?, ?)
+                (url_id, title, meta_description, h1_tags, h2_tags, canonical_url)
+                VALUES (?, ?, ?, ?, ?, ?)
             """,
                 (
                     url_id,
@@ -140,6 +140,7 @@ class Database:
                     seo_data.get("meta_description"),
                     h1_json,
                     h2_json,
+                    seo_data.get("canonical_url"),
                 ),
             )
 
