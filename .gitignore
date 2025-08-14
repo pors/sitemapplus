@@ -4,5 +4,6 @@ __pycache__/
 TODO.md
 *report.html
 *.txt
+*.xml
 config.yaml
 *.db
