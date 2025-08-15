@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 TODO.md
 *report.html
-*.txt
+sitemap.txt
 *.xml
 config.yaml
 *.db
