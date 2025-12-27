@@ -456,6 +456,19 @@ def main():
                     cursor.execute("DELETE FROM seo_issues WHERE url_id = ?", (url_id,))
                 print(f"  ✅ No SEO issues")
 
+            # Discover new links
+            found_links = extract_links(response.text, args.url, config)
+            new_links_added = 0
+            for link in found_links:
+                with db.get_cursor() as cursor:
+                    cursor.execute("SELECT id FROM urls WHERE url = ?", (link,))
+                    if not cursor.fetchone():
+                        db.save_url(link, status="new")
+                        new_links_added += 1
+
+            if new_links_added:
+                print(f"  📎 Discovered {new_links_added} new URLs")
+
             print(f"\n✅ Done")
             return
 
