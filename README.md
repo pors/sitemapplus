@@ -130,6 +130,13 @@ python crawler.py --reset --max-pages 50
 python crawler.py --retry-only --max-pages 20
 ```
 
+#### Recrawl a single URL
+
+```bash
+# Recrawl a specific page (e.g., after fixing an SEO issue)
+python crawler.py --url "https://example.com/my-page"
+```
+
 #### Filter sitemap generation
 
 ```bash
@@ -412,14 +419,16 @@ crawler:
 ```
 
 ### Exclude Patterns
-Skip certain URL patterns:
+Skip URLs containing certain patterns (useful for login pages, SPAs, etc.):
 
 ```yaml
 crawler:
   exclude_patterns:
-    - \"/admin/*\"
-    - \"/api/*\"
-    - \"*.pdf\"
+    - "/login"
+    - "/admin"
+    - "/api"
+    - "/privacy"
+    - "/terms"
 ```
 
 ### SEO Severity Customization

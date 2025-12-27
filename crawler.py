@@ -143,11 +143,24 @@ def extract_seo_data(html: str, url: str) -> Dict:
     return data
 
 
-def extract_links(html: str, base_url: str) -> List[str]:
+# File extensions to exclude from crawling (non-HTML content)
+EXCLUDED_EXTENSIONS = {
+    '.zip', '.tar', '.gz', '.rar', '.7z',  # archives
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',  # documents
+    '.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.ico', '.bmp',  # images
+    '.mp3', '.wav', '.ogg', '.flac',  # audio
+    '.mp4', '.avi', '.mov', '.wmv', '.webm',  # video
+    '.css', '.js', '.json', '.xml',  # web assets
+    '.exe', '.dmg', '.apk', '.msi',  # executables
+}
+
+
+def extract_links(html: str, base_url: str, config: Dict) -> List[str]:
     """Extract all internal links from the page"""
     soup = BeautifulSoup(html, "lxml")
     links = []
     base_domain = urlparse(base_url).netloc
+    exclude_patterns = config.get("crawler", {}).get("exclude_patterns", [])
 
     for link in soup.find_all("a", href=True):
         href = link["href"]
@@ -155,6 +168,16 @@ def extract_links(html: str, base_url: str) -> List[str]:
 
         if urlparse(absolute_url).netloc == base_domain:
             absolute_url = absolute_url.split("#")[0]
+
+            # Skip non-HTML file extensions
+            path = urlparse(absolute_url).path.lower()
+            if any(path.endswith(ext) for ext in EXCLUDED_EXTENSIONS):
+                continue
+
+            # Skip excluded URL patterns
+            if any(pattern in path for pattern in exclude_patterns):
+                continue
+
             if absolute_url and absolute_url not in links:
                 links.append(absolute_url)
 
@@ -358,6 +381,7 @@ def main():
         "--preview", action="store_true", help="Preview what would be crawled"
     )
     parser.add_argument("--debug", action="store_true", help="Show debug information")
+    parser.add_argument("--url", type=str, help="Recrawl a specific URL")
     args = parser.parse_args()
 
     # Determine crawl mode
@@ -399,6 +423,40 @@ def main():
                 print(f"Ready for retry now: {ready_now}")
                 print(f"Waiting for backoff: {len(retry_candidates) - ready_now}")
             print("=" * 50)
+            return
+
+        # Handle single URL recrawl
+        if args.url:
+            print(f"\n🔄 Recrawling: {args.url}")
+            response, should_retry = fetch_page_with_retry(args.url, config, 0)
+
+            if not response:
+                print(f"  ❌ Failed to fetch URL")
+                return
+
+            print(f"  ✅ Status: {response.status_code}")
+
+            # Save/update URL
+            url_id = db.save_url(args.url, status="crawled", http_status=response.status_code)
+
+            # Extract and save SEO data
+            seo_data = extract_seo_data(response.text, args.url)
+            db.save_seo_data(url_id, seo_data)
+
+            # Identify and save SEO issues
+            issues = identify_seo_issues(seo_data, config)
+            if issues:
+                print(f"  ⚠️  Found {len(issues)} SEO issues:")
+                for issue in issues:
+                    print(f"      - {issue['type']}: {issue['details']}")
+                db.save_seo_issues(url_id, issues)
+            else:
+                # Clear any existing issues
+                with db.get_cursor() as cursor:
+                    cursor.execute("DELETE FROM seo_issues WHERE url_id = ?", (url_id,))
+                print(f"  ✅ No SEO issues")
+
+            print(f"\n✅ Done")
             return
 
         # Handle preview mode
@@ -522,7 +580,7 @@ def main():
 
             # Extract and queue new links from every page
             if mode != CrawlMode.RETRY_ONLY:
-                found_links = extract_links(response.text, current_url)
+                found_links = extract_links(response.text, current_url, config)
                 new_links_added = 0
                 already_known = 0
 

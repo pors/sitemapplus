@@ -562,7 +562,8 @@ def main():
         
         if args.open:
             import webbrowser
-            webbrowser.open(f"file://{args.output}")
+            import os
+            webbrowser.open(f"file://{os.path.abspath(args.output)}")
 
 if __name__ == "__main__":
     main()
