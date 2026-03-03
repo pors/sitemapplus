@@ -21,6 +21,7 @@ Perfect for maintaining sitemaps for dynamic sites with constantly changing cont
 ### Core Functionality
 - **Incremental Crawling** - Only crawls new/changed pages, picks up where it left off
 - **Smart Retry Logic** - Exponential backoff for failed requests (network issues, 5xx errors)
+- **Redirect-Aware Storage** - Persists final resolved URL after redirects
 - **SEO Analysis** - Checks title, meta descriptions, H1/H2 tags against configurable rules
 - **Multiple Output Formats** - Generates sitemap.txt, sitemap.xml, and HTML reports
 - **Database Storage** - SQLite backend for persistence and historical data
@@ -32,7 +33,7 @@ Perfect for maintaining sitemaps for dynamic sites with constantly changing cont
 - **Error Recovery** - Distinguishes between temporary and permanent failures
 - **Detailed Reporting** - HTML reports with filtering and expandable details
 - **Status Tracking** - Monitor crawl progress and pending work
-- **URL Pattern Detection** - Handles dynamic routes (coming soon)
+- **URL Hygiene Filters** - Skips unresolved template routes and non-HTML assets (`.md`, `.pdf`, etc.)
 - **Webhook Support** - API endpoints for real-time updates (coming soon)
 
 ## 📦 Installation
@@ -252,8 +253,8 @@ urls                          seo_data
 ├── url (UNIQUE)              ├── title
 ├── status                    ├── meta_description
 ├── http_status               ├── h1_tags (JSON)
-├── retry_count               └── h2_tags (JSON)
-└── last_crawled
+├── retry_count               ├── h2_tags (JSON)
+└── last_crawled              └── canonical_url
 
 seo_issues                    custom_seo_data
 ├── id (PK)                   ├── id (PK)
@@ -268,11 +269,17 @@ seo_issues                    custom_seo_data
    ┌─────┐      ┌──────────┐      ┌─────────┐
    │ new │─────▶│ crawling │─────▶│ crawled │
    └─────┘      └──────────┘      └─────────┘
+                      │                 │
+                      ▼                 ▼
+                 ┌────────┐       ┌────────────┐
+                 │ error  │       │ redirected │
+                 └────────┘       └────────────┘
                       │
                       ▼
-                 ┌────────┐
-                 │ error  │──────▶ (retry with backoff)
-                 └────────┘
+                 (retry with backoff)
+
+   Invalid/disallowed URLs (for example unresolved `/{path}` routes or `.md` links)
+   are marked `invalid` and excluded from future queues.
 ```
 
 ### Crawl Algorithm
@@ -290,17 +297,18 @@ seo_issues                    custom_seo_data
 
 3. **Link Discovery**
    - Parse all `<a href>` tags
-   - Filter for internal links only
+   - Filter for internal links only (supports `allow_subdomains` / `allowed_subdomains`)
+   - Skip unresolved template URLs (`{...}`) and excluded extensions (`.md`, `.pdf`, etc.)
    - Add new URLs to database as status='new'
 
 4. **Retry Logic**
-5. 
    ```
    Backoff time = 2^retry_count seconds
    Max retries = 5 (configurable)
    Retryable: 5xx, 429, timeouts
    Non-retryable: 4xx errors
    ```
+   Non-retryable failures are marked as permanent and removed from retry candidates.
 
 ## 🔧 Development
 
@@ -399,6 +407,12 @@ python crawler.py --stats
 ```bash
 # Clear error status
 sqlite3 sitemap.db \"UPDATE urls SET status='new' WHERE status='error';\"
+```
+
+**Remove invalid template/asset URLs**
+
+```bash
+sqlite3 sitemap.db "DELETE FROM urls WHERE status='invalid';"
 ```
 
 **Memory issues with large sites**
