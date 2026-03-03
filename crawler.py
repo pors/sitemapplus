@@ -375,7 +375,7 @@ def main():
         "--new-only", action="store_true", help="Only crawl new URLs, skip retries"
     )
     parser.add_argument(
-        "--max-pages", type=int, default=10, help="Maximum pages to crawl"
+        "--max-pages", type=int, default=0, help="Maximum pages to crawl (0 = unlimited)"
     )
     parser.add_argument(
         "--preview", action="store_true", help="Preview what would be crawled"
@@ -507,24 +507,14 @@ def main():
             db.reset_database()
             print()
 
-        # Build crawl queue
-        base_url = config["site"]["base_url"]
-        urls_to_visit, retry_count, new_count = build_crawl_queue(
-            db, config, mode, base_url, preview=False
-        )
-
-        if not urls_to_visit:
-            print("No URLs to crawl")
-            return
-
         # Initialize tracking
+        base_url = config["site"]["base_url"]
         visited_urls: Set[str] = set()
         max_pages = args.max_pages
 
         print(f"\n" + "=" * 50)
         print(f"CRAWL MODE: {mode.value.replace('_', ' ').title()}")
-        print(f"Queue: {retry_count} retries, {new_count} new URLs")
-        print(f"Max pages: {max_pages}")
+        print(f"Max pages: {'unlimited' if max_pages == 0 else max_pages}")
         print(f"Max retries per URL: {config['crawler']['max_retries']}")
         print("=" * 50 + "\n")
 
@@ -533,89 +523,106 @@ def main():
         failed_permanently = 0
         discovered_urls = 0
 
-        while urls_to_visit and page_count < max_pages:
-            current_url = urls_to_visit.pop(0)
-
-            if current_url in visited_urls:
-                continue
-
-            visited_urls.add(current_url)
-            page_count += 1
-
-            # Get retry count from database
-            retry_count = db.get_url_retry_count(current_url)
-
-            status_text = f"[{page_count}/{max_pages}]"
-            if retry_count > 0:
-                status_text += (
-                    f" [Retry {retry_count}/{config['crawler']['max_retries']}]"
-                )
-            print(f"{status_text} Processing: {current_url}")
-
-            # Fetch the page
-            response, should_retry = fetch_page_with_retry(
-                current_url, config, retry_count
+        while True:
+            urls_to_visit, retry_count, new_count = build_crawl_queue(
+                db, config, mode, base_url, preview=False
             )
+            urls_to_visit = [u for u in urls_to_visit if u not in visited_urls]
 
-            if not response:
-                if should_retry and retry_count < config["crawler"]["max_retries"]:
-                    new_retry_count = db.increment_retry_count(current_url)
-                    db.save_url(current_url, status="error", http_status=None)
-                    print(
-                        f"  🔄 Will retry later (attempt {new_retry_count}/{config['crawler']['max_retries']})"
+            if not urls_to_visit:
+                if page_count == 0:
+                    print("No URLs to crawl")
+                break
+
+            print(f"Queue: {retry_count} retries, {new_count} new URLs\n")
+
+            while urls_to_visit and (max_pages == 0 or page_count < max_pages):
+                current_url = urls_to_visit.pop(0)
+
+                if current_url in visited_urls:
+                    continue
+
+                visited_urls.add(current_url)
+                page_count += 1
+
+                # Get retry count from database
+                retry_count = db.get_url_retry_count(current_url)
+
+                page_label = f"{page_count}" if max_pages == 0 else f"{page_count}/{max_pages}"
+                status_text = f"[{page_label}]"
+                if retry_count > 0:
+                    status_text += (
+                        f" [Retry {retry_count}/{config['crawler']['max_retries']}]"
                     )
-                else:
-                    db.save_url(current_url, status="error", http_status=None)
-                    failed_permanently += 1
-                    print(f"  ❌ Failed permanently")
-                continue
+                print(f"{status_text} Processing: {current_url}")
 
-            print(f"  ✅ Status: {response.status_code}")
-
-            # Save successful crawl
-            url_id = db.save_url(
-                current_url, status="crawled", http_status=response.status_code
-            )
-
-            # Extract and save SEO data
-            seo_data = extract_seo_data(response.text, current_url)
-            db.save_seo_data(url_id, seo_data)
-
-            # Identify and save SEO issues
-            issues = identify_seo_issues(seo_data, config)
-            if issues:
-                print(f"  ⚠️  Found {len(issues)} SEO issues")
-                db.save_seo_issues(url_id, issues)
-            else:
-                print(f"  ✅ No SEO issues")
-
-            successful_crawls += 1
-
-            # Extract and queue new links from every page
-            if mode != CrawlMode.RETRY_ONLY:
-                found_links = extract_links(response.text, current_url, config)
-                new_links_added = 0
-                already_known = 0
-
-                for link in found_links:
-                    # Check if URL already exists in database
-                    with db.get_cursor() as cursor:
-                        cursor.execute("SELECT id FROM urls WHERE url = ?", (link,))
-                        exists = cursor.fetchone()
-
-                    if not exists:
-                        db.save_url(link, status="new")
-                        new_links_added += 1
-                        discovered_urls += 1
-                        if args.debug:  # Debug mode shows each new URL
-                            print(f"    + New: {link}")
-                    else:
-                        already_known += 1
-
-                # Better reporting
-                print(
-                    f"  📎 Found {len(found_links)} links: {new_links_added} new, {already_known} already known"
+                # Fetch the page
+                response, should_retry = fetch_page_with_retry(
+                    current_url, config, retry_count
                 )
+
+                if not response:
+                    if should_retry and retry_count < config["crawler"]["max_retries"]:
+                        new_retry_count = db.increment_retry_count(current_url)
+                        db.save_url(current_url, status="error", http_status=None)
+                        print(
+                            f"  🔄 Will retry later (attempt {new_retry_count}/{config['crawler']['max_retries']})"
+                        )
+                    else:
+                        db.save_url(current_url, status="error", http_status=None)
+                        failed_permanently += 1
+                        print(f"  ❌ Failed permanently")
+                    continue
+
+                print(f"  ✅ Status: {response.status_code}")
+
+                # Save successful crawl
+                url_id = db.save_url(
+                    current_url, status="crawled", http_status=response.status_code
+                )
+
+                # Extract and save SEO data
+                seo_data = extract_seo_data(response.text, current_url)
+                db.save_seo_data(url_id, seo_data)
+
+                # Identify and save SEO issues
+                issues = identify_seo_issues(seo_data, config)
+                if issues:
+                    print(f"  ⚠️  Found {len(issues)} SEO issues")
+                    db.save_seo_issues(url_id, issues)
+                else:
+                    print(f"  ✅ No SEO issues")
+
+                successful_crawls += 1
+
+                # Extract and queue new links from every page
+                if mode != CrawlMode.RETRY_ONLY:
+                    found_links = extract_links(response.text, current_url, config)
+                    new_links_added = 0
+                    already_known = 0
+
+                    for link in found_links:
+                        # Check if URL already exists in database
+                        with db.get_cursor() as cursor:
+                            cursor.execute("SELECT id FROM urls WHERE url = ?", (link,))
+                            exists = cursor.fetchone()
+
+                        if not exists:
+                            db.save_url(link, status="new")
+                            new_links_added += 1
+                            discovered_urls += 1
+                            if args.debug:  # Debug mode shows each new URL
+                                print(f"    + New: {link}")
+                        else:
+                            already_known += 1
+
+                    # Better reporting
+                    print(
+                        f"  📎 Found {len(found_links)} links: {new_links_added} new, {already_known} already known"
+                    )
+
+            if max_pages > 0 and page_count >= max_pages:
+                break
 
         # Summary
         print("\n" + "=" * 50)
@@ -631,27 +638,28 @@ def main():
         print(f"Failed permanently: {failed_permanently}")
         print(f"Total URLs in database: {stats['total_urls']}")
 
-        # Show what's pending
-        retry_candidates = db.get_retry_candidates(config["crawler"]["max_retries"])
-        with db.get_cursor() as cursor:
-            cursor.execute('SELECT COUNT(*) FROM urls WHERE status = "new"')
-            pending_new = cursor.fetchone()[0]
+        # Show what's pending (only relevant if we stopped due to max_pages)
+        if max_pages > 0 and page_count >= max_pages:
+            retry_candidates = db.get_retry_candidates(config["crawler"]["max_retries"])
+            with db.get_cursor() as cursor:
+                cursor.execute('SELECT COUNT(*) FROM urls WHERE status = "new"')
+                pending_new = cursor.fetchone()[0]
 
-        if retry_candidates or pending_new:
-            print(f"\n📋 Pending work:")
-            if retry_candidates:
-                ready_now = sum(
-                    1
-                    for c in retry_candidates
-                    if should_retry_now(c["last_crawled"], c["retry_count"])
-                )
-                print(f"  - {ready_now} URLs ready for retry")
-                print(
-                    f"  - {len(retry_candidates) - ready_now} URLs waiting for backoff"
-                )
-            if pending_new:
-                print(f"  - {pending_new} new URLs to crawl")
-            print("\n💡 Run crawler again to process pending URLs")
+            if retry_candidates or pending_new:
+                print(f"\n📋 Pending work:")
+                if retry_candidates:
+                    ready_now = sum(
+                        1
+                        for c in retry_candidates
+                        if should_retry_now(c["last_crawled"], c["retry_count"])
+                    )
+                    print(f"  - {ready_now} URLs ready for retry")
+                    print(
+                        f"  - {len(retry_candidates) - ready_now} URLs waiting for backoff"
+                    )
+                if pending_new:
+                    print(f"  - {pending_new} new URLs to crawl")
+                print("\n💡 Run crawler again to process pending URLs")
 
         if successful_crawls > 0 and not args.stats and not args.preview:
             print("\n" + "=" * 50)
