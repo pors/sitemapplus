@@ -1,6 +1,8 @@
 # Minimal config for testing
 site:
-  base_url: "https:/example.com"
+  base_url: "https://example.com"
+  allow_subdomains: false  # Allow any *.example.com host
+  allowed_subdomains: []   # Optional: e.g. ["docs", "blog.example.com"]
   sitemap_output_path: "./sitemap.txt"
 
 crawler:

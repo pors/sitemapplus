@@ -152,6 +152,8 @@ Edit `config.yaml` to customize:
 # Site configuration
 site:
   base_url: \"https://example.com\"
+  allow_subdomains: false
+  allowed_subdomains: [\"docs\"]  # optional
   sitemap_output_path: \"./sitemap.txt\"
 
 # Crawler settings
@@ -430,6 +432,19 @@ crawler:
     - "/privacy"
     - "/terms"
 ```
+
+### Subdomain Crawling
+Allow crawling multiple hosts for the same site:
+
+```yaml
+site:
+  base_url: "https://paperzilla.ai"
+  allow_subdomains: false
+  allowed_subdomains:
+    - "docs"  # allows docs.paperzilla.ai
+```
+
+Set `allow_subdomains: true` to include any `*.paperzilla.ai` subdomain.
 
 ### SEO Severity Customization
 Redefine issue importance:

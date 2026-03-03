@@ -48,6 +48,24 @@ def should_retry_now(last_crawled: str, retry_count: int) -> bool:
     return datetime.now() >= next_retry_time
 
 
+def mark_non_retryable_error(db: Database, url: str, max_retries: int) -> None:
+    """Mark a URL as permanently failed so it won't be queued again."""
+    now = datetime.now().isoformat()
+    with db.get_cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE urls
+            SET status = 'error',
+                http_status = NULL,
+                retry_count = ?,
+                last_crawled = ?,
+                updated_at = ?
+            WHERE url = ?
+        """,
+            (max_retries, now, now, url),
+        )
+
+
 def fetch_page_with_retry(
     url: str, config: Dict, retry_count: int = 0
 ) -> Tuple[Optional[requests.Response], bool]:
@@ -80,7 +98,7 @@ def fetch_page_with_retry(
         return None, True
 
     except requests.exceptions.HTTPError as e:
-        status_code = e.response.status_code if e.response else None
+        status_code = e.response.status_code if e.response is not None else None
 
         if status_code:
             if status_code == 429:
@@ -146,6 +164,7 @@ def extract_seo_data(html: str, url: str) -> Dict:
 # File extensions to exclude from crawling (non-HTML content)
 EXCLUDED_EXTENSIONS = {
     '.zip', '.tar', '.gz', '.rar', '.7z',  # archives
+    '.md', '.markdown',  # markdown
     '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',  # documents
     '.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.ico', '.bmp',  # images
     '.mp3', '.wav', '.ogg', '.flac',  # audio
@@ -155,31 +174,121 @@ EXCLUDED_EXTENSIONS = {
 }
 
 
+def normalize_hostname(hostname: Optional[str]) -> str:
+    """Normalize hostname for consistent comparisons."""
+    return (hostname or "").strip().lower().rstrip(".")
+
+
+def get_allowed_host_rules(config: Dict) -> Tuple[str, Set[str], bool]:
+    """Build hostname allow-list rules from config."""
+    site_config = config.get("site", {})
+    base_url = site_config.get("base_url", "")
+    base_host = normalize_hostname(urlparse(base_url).hostname)
+
+    explicit_hosts: Set[str] = set()
+    if base_host:
+        explicit_hosts.add(base_host)
+
+    # Accept either a list of labels (e.g. "docs") or full hostnames.
+    for value in site_config.get("allowed_subdomains", []):
+        subdomain = normalize_hostname(str(value))
+        if not subdomain:
+            continue
+        if "." in subdomain:
+            explicit_hosts.add(subdomain)
+        elif base_host:
+            explicit_hosts.add(f"{subdomain}.{base_host}")
+
+    allow_subdomains = bool(site_config.get("allow_subdomains", False))
+    return base_host, explicit_hosts, allow_subdomains
+
+
+def is_allowed_host(
+    hostname: Optional[str],
+    base_host: str,
+    explicit_hosts: Set[str],
+    allow_subdomains: bool,
+) -> bool:
+    """Check whether a hostname should be treated as internal."""
+    candidate = normalize_hostname(hostname)
+    if not candidate:
+        return False
+
+    if candidate in explicit_hosts:
+        return True
+
+    if allow_subdomains and base_host and candidate.endswith(f".{base_host}"):
+        return True
+
+    return False
+
+
+def resolve_crawled_url(requested_url: str, fetched_url: Optional[str]) -> str:
+    """Use final fetched URL when available, removing fragments."""
+    effective_url = (fetched_url or requested_url).strip()
+    return effective_url.split("#")[0]
+
+
+def has_template_placeholder(url: str) -> bool:
+    """Detect unresolved route placeholders such as {path} in URLs."""
+    lower_url = url.lower()
+    return (
+        "{" in lower_url
+        or "}" in lower_url
+        or "%7b" in lower_url
+        or "%7d" in lower_url
+    )
+
+
+def has_excluded_extension(url: str) -> bool:
+    """Detect URLs that resolve to excluded file extensions."""
+    path = urlparse(url).path.lower()
+    return any(path.endswith(ext) for ext in EXCLUDED_EXTENSIONS)
+
+
+def get_invalid_url_reason(url: str) -> Optional[str]:
+    """Return skip reason for URLs that should never be crawled."""
+    if has_template_placeholder(url):
+        return "unresolved template URL"
+    if has_excluded_extension(url):
+        return "excluded file extension URL"
+    return None
+
+
 def extract_links(html: str, base_url: str, config: Dict) -> List[str]:
     """Extract all internal links from the page"""
     soup = BeautifulSoup(html, "lxml")
     links = []
-    base_domain = urlparse(base_url).netloc
+    base_host, explicit_hosts, allow_subdomains = get_allowed_host_rules(config)
     exclude_patterns = config.get("crawler", {}).get("exclude_patterns", [])
 
     for link in soup.find_all("a", href=True):
         href = link["href"]
         absolute_url = urljoin(base_url, href)
+        parsed_url = urlparse(absolute_url)
 
-        if urlparse(absolute_url).netloc == base_domain:
-            absolute_url = absolute_url.split("#")[0]
+        if not is_allowed_host(
+            parsed_url.hostname, base_host, explicit_hosts, allow_subdomains
+        ):
+            continue
 
-            # Skip non-HTML file extensions
-            path = urlparse(absolute_url).path.lower()
-            if any(path.endswith(ext) for ext in EXCLUDED_EXTENSIONS):
-                continue
+        absolute_url = absolute_url.split("#")[0]
 
-            # Skip excluded URL patterns
-            if any(pattern in path for pattern in exclude_patterns):
-                continue
+        # Skip unresolved URL templates like /{path}
+        if has_template_placeholder(absolute_url):
+            continue
 
-            if absolute_url and absolute_url not in links:
-                links.append(absolute_url)
+        # Skip non-HTML and markdown file extensions
+        if has_excluded_extension(absolute_url):
+            continue
+
+        # Skip excluded URL patterns
+        path = parsed_url.path.lower()
+        if any(pattern in path for pattern in exclude_patterns):
+            continue
+
+        if absolute_url and absolute_url not in links:
+            links.append(absolute_url)
 
     return links
 
@@ -327,13 +436,26 @@ def build_crawl_queue(db: Database, config: Dict, mode: CrawlMode, base_url: str
         # Get retry candidates that are ready
         retry_candidates = db.get_retry_candidates(config['crawler']['max_retries'])
         ready_retries = []
+        skipped_invalid_retries = 0
         
         for candidate in retry_candidates:
+            invalid_reason = get_invalid_url_reason(candidate["url"])
+            if invalid_reason:
+                skipped_invalid_retries += 1
+                if not preview:
+                    db.save_url(candidate["url"], status="invalid", http_status=None)
+                continue
+
             if should_retry_now(candidate['last_crawled'], candidate['retry_count']):
                 ready_retries.append(candidate['url'])
             elif not preview:
                 backoff = calculate_backoff_time(candidate['retry_count'])
                 print(f"⏳ Skipping retry: {candidate['url'][:50]}... (retry in {backoff:.0f}s)")
+        
+        if skipped_invalid_retries and not preview:
+            print(
+                f"🚫 Skipped {skipped_invalid_retries} invalid retry URL(s)"
+            )
         
         if ready_retries and not preview:
             print(f"🔄 Found {len(ready_retries)} URLs ready for retry")
@@ -350,12 +472,28 @@ def build_crawl_queue(db: Database, config: Dict, mode: CrawlMode, base_url: str
             ''')
             new_urls = [row[0] for row in cursor.fetchall()]
             print(f"DEBUG: Found {len(new_urls)} URLs with status='new'")
+
+        filtered_new_urls = []
+        skipped_invalid_new = 0
+        for url in new_urls:
+            invalid_reason = get_invalid_url_reason(url)
+            if invalid_reason:
+                skipped_invalid_new += 1
+                if not preview:
+                    db.save_url(url, status="invalid", http_status=None)
+                continue
+            filtered_new_urls.append(url)
+
+        if skipped_invalid_new and not preview:
+            print(
+                f"🚫 Skipped {skipped_invalid_new} invalid new URL(s)"
+            )
         
-        if new_urls:
+        if filtered_new_urls:
             if not preview:
-                print(f"🆕 Found {len(new_urls)} new URLs to crawl")
-            urls_to_visit.extend(new_urls)
-            new_count = len(new_urls)
+                print(f"🆕 Found {len(filtered_new_urls)} new URLs to crawl")
+            urls_to_visit.extend(filtered_new_urls)
+            new_count = len(filtered_new_urls)
     
     return urls_to_visit, retry_count, new_count
 
@@ -427,20 +565,43 @@ def main():
 
         # Handle single URL recrawl
         if args.url:
+            invalid_reason = get_invalid_url_reason(args.url)
+            if invalid_reason:
+                db.save_url(args.url, status="invalid", http_status=None)
+                print(f"\n🚫 Skipping {invalid_reason}: {args.url}")
+                return
+
             print(f"\n🔄 Recrawling: {args.url}")
             response, should_retry = fetch_page_with_retry(args.url, config, 0)
 
             if not response:
+                if not should_retry:
+                    db.save_url(args.url, status="error", http_status=None)
+                    mark_non_retryable_error(
+                        db, args.url, config["crawler"]["max_retries"]
+                    )
                 print(f"  ❌ Failed to fetch URL")
                 return
 
             print(f"  ✅ Status: {response.status_code}")
 
-            # Save/update URL
-            url_id = db.save_url(args.url, status="crawled", http_status=response.status_code)
+            resolved_url = resolve_crawled_url(args.url, response.url)
+            if resolved_url != args.url:
+                redirect_status = (
+                    response.history[0].status_code
+                    if response.history
+                    else response.status_code
+                )
+                db.save_url(args.url, status="redirected", http_status=redirect_status)
+                print(f"  ↪ Redirected to: {resolved_url}")
+
+            # Save/update URL (use final URL after redirects)
+            url_id = db.save_url(
+                resolved_url, status="crawled", http_status=response.status_code
+            )
 
             # Extract and save SEO data
-            seo_data = extract_seo_data(response.text, args.url)
+            seo_data = extract_seo_data(response.text, resolved_url)
             db.save_seo_data(url_id, seo_data)
 
             # Identify and save SEO issues
@@ -457,7 +618,7 @@ def main():
                 print(f"  ✅ No SEO issues")
 
             # Discover new links
-            found_links = extract_links(response.text, args.url, config)
+            found_links = extract_links(response.text, resolved_url, config)
             new_links_added = 0
             for link in found_links:
                 with db.get_cursor() as cursor:
@@ -556,6 +717,12 @@ def main():
                     )
                 print(f"{status_text} Processing: {current_url}")
 
+                invalid_reason = get_invalid_url_reason(current_url)
+                if invalid_reason:
+                    db.save_url(current_url, status="invalid", http_status=None)
+                    print(f"  🚫 Skipping {invalid_reason}")
+                    continue
+
                 # Fetch the page
                 response, should_retry = fetch_page_with_retry(
                     current_url, config, retry_count
@@ -569,20 +736,37 @@ def main():
                             f"  🔄 Will retry later (attempt {new_retry_count}/{config['crawler']['max_retries']})"
                         )
                     else:
-                        db.save_url(current_url, status="error", http_status=None)
+                        if should_retry:
+                            db.save_url(current_url, status="error", http_status=None)
+                        else:
+                            mark_non_retryable_error(
+                                db, current_url, config["crawler"]["max_retries"]
+                            )
                         failed_permanently += 1
                         print(f"  ❌ Failed permanently")
                     continue
 
                 print(f"  ✅ Status: {response.status_code}")
 
-                # Save successful crawl
+                resolved_url = resolve_crawled_url(current_url, response.url)
+                if resolved_url != current_url:
+                    redirect_status = (
+                        response.history[0].status_code
+                        if response.history
+                        else response.status_code
+                    )
+                    db.save_url(
+                        current_url, status="redirected", http_status=redirect_status
+                    )
+                    print(f"  ↪ Redirected to: {resolved_url}")
+
+                # Save successful crawl using final URL
                 url_id = db.save_url(
-                    current_url, status="crawled", http_status=response.status_code
+                    resolved_url, status="crawled", http_status=response.status_code
                 )
 
                 # Extract and save SEO data
-                seo_data = extract_seo_data(response.text, current_url)
+                seo_data = extract_seo_data(response.text, resolved_url)
                 db.save_seo_data(url_id, seo_data)
 
                 # Identify and save SEO issues
@@ -597,7 +781,7 @@ def main():
 
                 # Extract and queue new links from every page
                 if mode != CrawlMode.RETRY_ONLY:
-                    found_links = extract_links(response.text, current_url, config)
+                    found_links = extract_links(response.text, resolved_url, config)
                     new_links_added = 0
                     already_known = 0
 
